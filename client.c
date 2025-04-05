@@ -5,7 +5,7 @@
 #define DN_IMPLEMENTATION
 #include "dn.h"
 
-#define ADDRESS "127.0.0.1"
+#define DEFAULT_ADDRESS "127.0.0.1"
 #define PORT 6969
 #define BUFFER_CAPACITY 4096
 
@@ -26,8 +26,13 @@ void *listen_thread(void *user_data)
     return NULL;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+    const char *address = DEFAULT_ADDRESS;
+    if (argc > 1) {
+        address = argv[1];
+    }
+
     TcpSocket *client = tcp_socket_create();
     if (client == NULL) {
         fprintf(stderr, "ERROR: Could not create socket: %s\n",
@@ -35,7 +40,7 @@ int main(void)
         return EXIT_FAILURE;
     }
 
-    if (!tcp_socket_connect(client, ADDRESS, PORT)) {
+    if (!tcp_socket_connect(client, address, PORT)) {
         fprintf(stderr, "ERROR: Could not connect to server: %s\n",
                 tcp_get_error());
         tcp_socket_close(client);
