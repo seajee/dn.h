@@ -10,33 +10,50 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+typedef enum {
+    SOCKET_TCP,
+    SOCKET_UDP,
+} SocketType;
+
 typedef struct {
     int sockfd;
     struct sockaddr_in addr;
-} TcpSocket;
+    SocketType type;
+} Socket;
 
-TcpSocket *tcp_socket_create(void);
-bool tcp_socket_bind(TcpSocket *socket, int port);
-bool tcp_socket_listen(TcpSocket *socket, int backlog);
-TcpSocket *tcp_socket_accept(TcpSocket *socket);
-bool tcp_socket_connect(TcpSocket *socket, const char *ipv4, int port);
-ssize_t tcp_socket_send(TcpSocket *socket, const void *buffer, size_t size);
-ssize_t tcp_socket_receive(TcpSocket *socket, void *buffer, size_t size);
-void tcp_socket_close(TcpSocket *socket);
-const char *tcp_get_error(void);
+Socket *socket_create(SocketType type);
+bool socket_bind(Socket *socket, int port);
+bool socket_listen(Socket *socket, int backlog);
+Socket *socket_accept(Socket *socket);
+bool socket_connect(Socket *socket, const char *ipv4, int port);
+ssize_t socket_send(Socket *socket, const void *buffer, size_t size);
+ssize_t socket_receive(Socket *socket, void *buffer, size_t size);
+void socket_close(Socket *socket);
+const char *socket_get_error(void);
 
 #endif // DN_H_
 
 #ifdef DN_IMPLEMENTATION
 
-TcpSocket *tcp_socket_create(void)
+Socket *socket_create(SocketType type)
 {
-    TcpSocket *sock = malloc(sizeof(*sock));
+    Socket *sock = malloc(sizeof(*sock));
     if (sock == NULL) {
         return NULL;
     }
 
-    sock->sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    int socket_type;
+    switch (type) {
+        case SOCKET_TCP: socket_type = SOCK_STREAM; break;
+        case SOCKET_UDP: socket_type = SOCK_DGRAM; break;
+        default: {
+            free(sock);
+            errno = EINVAL;
+            return NULL;
+        } break;
+    }
+
+    sock->sockfd = socket(AF_INET, socket_type, 0);
     if (sock->sockfd < 0) {
         free(sock);
         return NULL;
@@ -48,7 +65,7 @@ TcpSocket *tcp_socket_create(void)
     return sock;
 }
 
-bool tcp_socket_bind(TcpSocket *socket, int port)
+bool socket_bind(Socket *socket, int port)
 {
     socket->addr.sin_port = htons(port);
     socket->addr.sin_addr.s_addr = INADDR_ANY;
@@ -60,7 +77,7 @@ bool tcp_socket_bind(TcpSocket *socket, int port)
     return true;
 }
 
-bool tcp_socket_listen(TcpSocket *socket, int backlog)
+bool socket_listen(Socket *socket, int backlog)
 {
     if (listen(socket->sockfd, backlog) < 0) {
         return false;
@@ -69,9 +86,9 @@ bool tcp_socket_listen(TcpSocket *socket, int backlog)
     return true;
 }
 
-TcpSocket *tcp_socket_accept(TcpSocket *socket)
+Socket *socket_accept(Socket *socket)
 {
-    TcpSocket *client_socket = tcp_socket_create();
+    Socket *client_socket = socket_create(socket->type);
     if (client_socket == NULL) {
         return NULL;
     }
@@ -86,7 +103,7 @@ TcpSocket *tcp_socket_accept(TcpSocket *socket)
     return client_socket;
 }
 
-bool tcp_socket_connect(TcpSocket *socket, const char *ipv4, int port)
+bool socket_connect(Socket *socket, const char *ipv4, int port)
 {
     socket->addr.sin_port = htons(port);
     inet_pton(AF_INET, ipv4, &socket->addr.sin_addr);
@@ -98,23 +115,23 @@ bool tcp_socket_connect(TcpSocket *socket, const char *ipv4, int port)
     return true;
 }
 
-ssize_t tcp_socket_send(TcpSocket *socket, const void *buffer, size_t size)
+ssize_t socket_send(Socket *socket, const void *buffer, size_t size)
 {
     return send(socket->sockfd, buffer, size, 0);
 }
 
-ssize_t tcp_socket_receive(TcpSocket *socket, void *buffer, size_t size)
+ssize_t socket_receive(Socket *socket, void *buffer, size_t size)
 {
     return recv(socket->sockfd, buffer, size, 0);
 }
 
-void tcp_socket_close(TcpSocket *socket)
+void socket_close(Socket *socket)
 {
     close(socket->sockfd);
     free(socket);
 }
 
-const char *tcp_get_error(void)
+const char *socket_get_error(void)
 {
     return strerror(errno);
 }

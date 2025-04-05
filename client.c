@@ -13,12 +13,12 @@ bool disconnected = false;
 
 void *listen_thread(void *user_data)
 {
-    TcpSocket *server = (TcpSocket*) user_data;
+    Socket *server = (Socket*) user_data;
 
     char buffer[BUFFER_CAPACITY];
     ssize_t received = 0;
 
-    while ((received = tcp_socket_receive(server, buffer, sizeof(buffer))) > 0) {
+    while ((received = socket_receive(server, buffer, sizeof(buffer))) > 0) {
         printf("%.*s\n", (int)received, buffer);
     }
 
@@ -33,24 +33,24 @@ int main(int argc, char **argv)
         address = argv[1];
     }
 
-    TcpSocket *client = tcp_socket_create();
+    Socket *client = socket_create(SOCKET_TCP);
     if (client == NULL) {
         fprintf(stderr, "ERROR: Could not create socket: %s\n",
-                tcp_get_error());
+                socket_get_error());
         return EXIT_FAILURE;
     }
 
-    if (!tcp_socket_connect(client, address, PORT)) {
+    if (!socket_connect(client, address, PORT)) {
         fprintf(stderr, "ERROR: Could not connect to server: %s\n",
-                tcp_get_error());
-        tcp_socket_close(client);
+                socket_get_error());
+        socket_close(client);
         return EXIT_FAILURE;
     }
 
     pthread_t ltid;
     if (pthread_create(&ltid, NULL, &listen_thread, client) != 0) {
         fprintf(stderr, "ERROR: Could not create listening thread\n");
-        tcp_socket_close(client);
+        socket_close(client);
         return EXIT_FAILURE;
     }
     pthread_detach(ltid);
@@ -66,10 +66,10 @@ int main(int argc, char **argv)
             break;
         }
         size_t len = strlen(buffer)-1;
-        tcp_socket_send(client, buffer, len);
+        socket_send(client, buffer, len);
     }
 
-    tcp_socket_close(client);
+    socket_close(client);
     printf("INFO: Closed socket\n");
 
     return EXIT_SUCCESS;

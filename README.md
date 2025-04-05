@@ -1,6 +1,6 @@
 # dn.h
 
-A simple C socket library wrapper supporting TCP via IPv4.
+A simple C socket library wrapper supporting TCP and UDP via IPv4.
 
 ## Quick start
 
